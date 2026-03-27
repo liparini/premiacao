@@ -628,7 +628,11 @@
       atualizarHistorico();
     });
 
-    const q = query(collection(db, 'premiacao_lancamentos'), orderBy('data', 'desc'), orderBy('criado_em', 'desc'));
+    // Consulta simplificada (sem necessidade de índice composto)
+    const q = query(
+      collection(db, 'premiacao_lancamentos'),
+      orderBy('data', 'desc')
+    );
     onSnapshot(q, (snapshot) => {
       todosLancamentos = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
       atualizarTudo();
