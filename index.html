@@ -273,6 +273,11 @@
       margin-bottom: 6px;
     }
 
+    .negativo {
+      color: var(--danger);
+      font-weight: bold;
+    }
+
     @media (max-width: 1080px) {
       .container { grid-template-columns: 1fr; }
       .grid-4, .grid-3, .ranking-top { grid-template-columns: 1fr; }
@@ -628,11 +633,11 @@
       atualizarHistorico();
     });
 
-    // Consulta simplificada (sem necessidade de índice composto)
     const q = query(
       collection(db, 'premiacao_lancamentos'),
       orderBy('data', 'desc')
     );
+
     onSnapshot(q, (snapshot) => {
       todosLancamentos = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
       atualizarTudo();
@@ -662,11 +667,6 @@
       });
     }
 
-    function listarPeriodosAte(periodoFinal) {
-      const periodos = [...new Set(todosLancamentos.map(item => item.periodo).filter(Boolean))].sort();
-      return periodos.filter(periodo => periodo <= periodoFinal);
-    }
-
     function construirResumoPorPeriodo() {
       const periodos = [...new Set(todosLancamentos.map(item => item.periodo).filter(Boolean))].sort();
       const funcionarios = [...new Set(todosLancamentos.map(item => item.funcionario_normalizado).filter(Boolean))].sort();
@@ -678,6 +678,7 @@
 
         for (const funcNorm of funcionarios) {
           const lancamentos = todosLancamentos.filter(item => item.periodo === periodo && item.funcionario_normalizado === funcNorm);
+
           if (!lancamentos.length && !dividasTransportadas[funcNorm]) continue;
 
           const pontos = lancamentos
@@ -690,8 +691,10 @@
 
           const debitoAnterior = dividasTransportadas[funcNorm] || 0;
           const totalAAbater = descontos + debitoAnterior;
-          const pontosLiquidos = Math.max(pontos - totalAAbater, 0);
-          const debitoProximo = Math.max(totalAAbater - pontos, 0);
+
+          const pontosLiquidos = pontos - totalAAbater;
+          const debitoProximo = pontosLiquidos < 0 ? Math.abs(pontosLiquidos) : 0;
+
           const nomeOriginal = lancamentos[0]?.funcionario || buscarNomeOriginal(funcNorm);
 
           resumo[periodo][funcNorm] = {
@@ -727,6 +730,7 @@
       const periodo = filtroMes.value;
       const nomeFiltro = normalizarTexto(filtroFuncionario.value || '');
       const resumoCompleto = construirResumoPorPeriodo();
+
       const resumoPeriodo = Object.values(resumoCompleto[periodo] || {}).filter(item => {
         return !nomeFiltro || item.funcionario_normalizado.includes(nomeFiltro);
       });
@@ -760,8 +764,10 @@
 
       podio1Nome.textContent = pos1 ? pos1.funcionario : '-';
       podio1Pontos.textContent = pos1 ? `${pos1.pontosLiquidos} ponto(s)` : '0 ponto(s)';
+
       podio2Nome.textContent = pos2 ? pos2.funcionario : '-';
       podio2Pontos.textContent = pos2 ? `${pos2.pontosLiquidos} ponto(s)` : '0 ponto(s)';
+
       podio3Nome.textContent = pos3 ? pos3.funcionario : '-';
       podio3Pontos.textContent = pos3 ? `${pos3.pontosLiquidos} ponto(s)` : '0 ponto(s)';
     }
@@ -773,6 +779,7 @@
       }
 
       tabelaRanking.innerHTML = ranking.map((item, index) => {
+        const classeNegativo = item.pontosLiquidos < 0 ? 'negativo' : '';
         return `
           <tr>
             <td>${index + 1}º</td>
@@ -780,7 +787,7 @@
             <td>${item.pontos}</td>
             <td>${item.descontos}</td>
             <td>${item.debitoAnterior}</td>
-            <td><strong>${item.pontosLiquidos}</strong></td>
+            <td><strong class="${classeNegativo}">${item.pontosLiquidos}</strong></td>
             <td>${item.debitoProximo}</td>
             <td>${item.melhorDoPeriodo ? 'Sim' : 'Não'}</td>
           </tr>
