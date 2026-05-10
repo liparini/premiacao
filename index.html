@@ -278,6 +278,131 @@
       font-weight: bold;
     }
 
+    /* ===== CONVERSOR DE PONTOS ===== */
+    .conversor-card {
+      margin-top: 20px;
+      background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+      border: none;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      color: #fff;
+    }
+
+    .conversor-card h2 {
+      margin-top: 0;
+      font-size: 18px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .conversor-card h2::before {
+      content: "💰";
+      font-size: 20px;
+    }
+
+    .conversor-card label {
+      color: rgba(255,255,255,0.9);
+      font-size: 13px;
+    }
+
+    .conversor-card input {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      font-weight: bold;
+      transition: background 0.2s, border 0.2s;
+    }
+
+    .conversor-card input::placeholder {
+      color: rgba(255,255,255,0.5);
+    }
+
+    .conversor-card input:focus {
+      outline: none;
+      background: rgba(255,255,255,0.22);
+      border-color: rgba(255,255,255,0.6);
+    }
+
+    /* Remove arrows from number input */
+    .conversor-card input[type=number]::-webkit-inner-spin-button,
+    .conversor-card input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .conversor-card input[type=number] { -moz-appearance: textfield; }
+
+    .conversor-resultado {
+      margin-top: 16px;
+      border-radius: 14px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: background 0.3s, border 0.3s;
+    }
+
+    .conversor-resultado.positivo {
+      background: rgba(22, 163, 74, 0.25);
+      border: 1px solid rgba(22, 163, 74, 0.5);
+    }
+
+    .conversor-resultado.negativo {
+      background: rgba(220, 38, 38, 0.25);
+      border: 1px solid rgba(220, 38, 38, 0.5);
+    }
+
+    .conversor-resultado.zerado {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .conversor-resultado-label {
+      font-size: 13px;
+      font-weight: bold;
+      opacity: 0.9;
+      line-height: 1.4;
+    }
+
+    .conversor-resultado-valor {
+      font-size: 28px;
+      font-weight: bold;
+      white-space: nowrap;
+      letter-spacing: -0.5px;
+    }
+
+    .conversor-resultado-valor.positivo { color: #86efac; }
+    .conversor-resultado-valor.negativo { color: #fca5a5; }
+    .conversor-resultado-valor.zerado   { color: rgba(255,255,255,0.7); }
+
+    .conversor-taxa {
+      margin-top: 10px;
+      font-size: 11px;
+      opacity: 0.7;
+      text-align: center;
+    }
+
+    .conversor-barra {
+      margin-top: 14px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.15);
+      overflow: hidden;
+    }
+
+    .conversor-barra-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease, background 0.3s;
+      background: #86efac;
+    }
+
     @media (max-width: 1080px) {
       .container { grid-template-columns: 1fr; }
       .grid-4, .grid-3, .ranking-top { grid-template-columns: 1fr; }
@@ -291,42 +416,68 @@
   </header>
 
   <main class="container">
-    <section class="card">
-      <h2>Novo lançamento</h2>
+    <section>
+      <div class="card">
+        <h2>Novo lançamento</h2>
 
-      <div class="user-box">
-        <button id="btnLogin" class="btn-primary">Entrar com Google</button>
-        <button id="btnLogout" class="btn-secondary" style="display:none;">Sair</button>
+        <div class="user-box">
+          <button id="btnLogin" class="btn-primary">Entrar com Google</button>
+          <button id="btnLogout" class="btn-secondary" style="display:none;">Sair</button>
+        </div>
+
+        <p id="userInfo" class="small">Faça login para registrar e visualizar os dados.</p>
+
+        <label for="nomeFuncionario">Funcionário</label>
+        <input id="nomeFuncionario" type="text" placeholder="Ex.: Maria Aparecida" />
+
+        <label for="dataLancamento">Data do lançamento</label>
+        <input id="dataLancamento" type="date" />
+
+        <label for="tipoLancamento">Tipo</label>
+        <select id="tipoLancamento">
+          <option value="PONTOS">Pontos</option>
+          <option value="DESCONTO">Desconto</option>
+        </select>
+
+        <label for="quantidade">Quantidade</label>
+        <input id="quantidade" type="number" min="0" step="1" placeholder="Ex.: 10" />
+
+        <label for="observacao">Observação</label>
+        <textarea id="observacao" placeholder="Ex.: meta diária, atraso, falta, destaque em vendas..."></textarea>
+
+        <button id="btnSalvar" class="btn-primary">Salvar lançamento</button>
+        <button id="btnLimpar" class="btn-secondary">Limpar campos</button>
+
+        <div id="formMessage" class="message"></div>
+
+        <p class="small">
+          Regras do sistema: os pontos valem apenas dentro do próprio mês. Se o desconto ultrapassar os pontos do mês, o saldo negativo é transportado para o próximo período até ser zerado.
+        </p>
       </div>
 
-      <p id="userInfo" class="small">Faça login para registrar e visualizar os dados.</p>
+      <!-- ===== CONVERSOR DE PONTOS EM DINHEIRO ===== -->
+      <div class="conversor-card">
+        <h2>Conversor de pontos</h2>
 
-      <label for="nomeFuncionario">Funcionário</label>
-      <input id="nomeFuncionario" type="text" placeholder="Ex.: Maria Aparecida" />
+        <label for="conversorPontos">Digite a quantidade de pontos</label>
+        <input
+          id="conversorPontos"
+          type="number"
+          step="1"
+          placeholder="Ex.: 2500 ou -800"
+        />
 
-      <label for="dataLancamento">Data do lançamento</label>
-      <input id="dataLancamento" type="date" />
+        <div id="conversorResultado" class="conversor-resultado zerado">
+          <div class="conversor-resultado-label" id="conversorLabel">Digite os pontos acima para calcular</div>
+          <div class="conversor-resultado-valor zerado" id="conversorValor">R$ 0,00</div>
+        </div>
 
-      <label for="tipoLancamento">Tipo</label>
-      <select id="tipoLancamento">
-        <option value="PONTOS">Pontos</option>
-        <option value="DESCONTO">Desconto</option>
-      </select>
+        <div class="conversor-barra">
+          <div class="conversor-barra-fill" id="conversorBarra" style="width:0%"></div>
+        </div>
 
-      <label for="quantidade">Quantidade</label>
-      <input id="quantidade" type="number" min="0" step="1" placeholder="Ex.: 10" />
-
-      <label for="observacao">Observação</label>
-      <textarea id="observacao" placeholder="Ex.: meta diária, atraso, falta, destaque em vendas..."></textarea>
-
-      <button id="btnSalvar" class="btn-primary">Salvar lançamento</button>
-      <button id="btnLimpar" class="btn-secondary">Limpar campos</button>
-
-      <div id="formMessage" class="message"></div>
-
-      <p class="small">
-        Regras do sistema: os pontos valem apenas dentro do próprio mês. Se o desconto ultrapassar os pontos do mês, o saldo negativo é transportado para o próximo período até ser zerado.
-      </p>
+        <p class="conversor-taxa">Taxa de conversão: 1.000 pontos = R$ 5,00</p>
+      </div>
     </section>
 
     <section>
@@ -528,6 +679,69 @@
     const podio3Pontos = document.getElementById('podio3Pontos');
     const tabelaRanking = document.getElementById('tabelaRanking');
     const tabelaLancamentos = document.getElementById('tabelaLancamentos');
+
+    // ===== CONVERSOR =====
+    const conversorPontos    = document.getElementById('conversorPontos');
+    const conversorResultado = document.getElementById('conversorResultado');
+    const conversorLabel     = document.getElementById('conversorLabel');
+    const conversorValor     = document.getElementById('conversorValor');
+    const conversorBarra     = document.getElementById('conversorBarra');
+
+    const PONTOS_POR_REAL = 1000;
+    const REAIS_POR_BLOCO = 5;
+
+    conversorPontos.addEventListener('input', calcularConversor);
+
+    function calcularConversor() {
+      const raw = conversorPontos.value;
+
+      if (raw === '' || raw === '-') {
+        conversorResultado.className = 'conversor-resultado zerado';
+        conversorLabel.textContent = 'Digite os pontos acima para calcular';
+        conversorValor.textContent = 'R$ 0,00';
+        conversorValor.className = 'conversor-resultado-valor zerado';
+        conversorBarra.style.width = '0%';
+        conversorBarra.style.background = '#86efac';
+        return;
+      }
+
+      const pontos = Number(raw);
+      if (isNaN(pontos)) return;
+
+      const valorReais = (pontos / PONTOS_POR_REAL) * REAIS_POR_BLOCO;
+      const valorFormatado = formatarReais(Math.abs(valorReais));
+
+      if (pontos > 0) {
+        conversorResultado.className = 'conversor-resultado positivo';
+        conversorLabel.textContent = `${pontos.toLocaleString('pt-BR')} ponto(s) equivalem a:`;
+        conversorValor.textContent = `R$ ${valorFormatado}`;
+        conversorValor.className = 'conversor-resultado-valor positivo';
+        conversorBarra.style.background = '#86efac';
+        // Barra: cheio a cada 1000 pontos, volta a 0 em cada ciclo
+        const pct = Math.min((pontos % PONTOS_POR_REAL || (pontos % PONTOS_POR_REAL === 0 && pontos > 0 ? PONTOS_POR_REAL : 0)) / PONTOS_POR_REAL * 100, 100);
+        conversorBarra.style.width = (pontos >= PONTOS_POR_REAL ? 100 : pct) + '%';
+      } else if (pontos < 0) {
+        conversorResultado.className = 'conversor-resultado negativo';
+        conversorLabel.textContent = `Saldo negativo de ${Math.abs(pontos).toLocaleString('pt-BR')} ponto(s) — débito de:`;
+        conversorValor.textContent = `– R$ ${valorFormatado}`;
+        conversorValor.className = 'conversor-resultado-valor negativo';
+        conversorBarra.style.background = '#fca5a5';
+        const pct = Math.min((Math.abs(pontos) % PONTOS_POR_REAL || (Math.abs(pontos) % PONTOS_POR_REAL === 0 && Math.abs(pontos) > 0 ? PONTOS_POR_REAL : 0)) / PONTOS_POR_REAL * 100, 100);
+        conversorBarra.style.width = (Math.abs(pontos) >= PONTOS_POR_REAL ? 100 : pct) + '%';
+      } else {
+        conversorResultado.className = 'conversor-resultado zerado';
+        conversorLabel.textContent = 'Saldo zerado — sem valor a converter';
+        conversorValor.textContent = 'R$ 0,00';
+        conversorValor.className = 'conversor-resultado-valor zerado';
+        conversorBarra.style.width = '0%';
+      }
+    }
+
+    function formatarReais(valor) {
+      return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // ===== FIM CONVERSOR =====
 
     const hoje = new Date();
     const hojeIso = hoje.toISOString().split('T')[0];
