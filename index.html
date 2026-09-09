@@ -210,6 +210,8 @@
 
     .status-pontos { background: var(--success); }
     .status-desconto { background: var(--danger); }
+    .status-otica { background: #7c3aed; }
+    .status-consumidor { background: #0ea5e9; }
 
     .actions {
       display: flex;
@@ -276,6 +278,20 @@
     .negativo {
       color: var(--danger);
       font-weight: bold;
+    }
+
+    .restrito {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    #previewComissao {
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-weight: bold;
+      color: #4338ca;
     }
 
     /* ===== CONVERSOR DE PONTOS ===== */
@@ -412,7 +428,7 @@
 <body>
   <header>
     <h1>Controle de Premiações</h1>
-    <p>Lançamento de pontos e descontos, classificação por período e controle automático de débito transportado entre meses.</p>
+    <p>Lançamento de pontos, descontos e vendas de Ótica/Consumidor, classificação por período e controle automático de débito transportado entre meses.</p>
   </header>
 
   <main class="container">
@@ -437,10 +453,13 @@
         <select id="tipoLancamento">
           <option value="PONTOS">Pontos</option>
           <option value="DESCONTO">Desconto</option>
+          <option value="OTICA">Ótica (1% da venda)</option>
+          <option value="CONSUMIDOR">Consumidor (2% da venda)</option>
         </select>
 
-        <label for="quantidade">Quantidade</label>
+        <label for="quantidade" id="labelQuantidade">Quantidade</label>
         <input id="quantidade" type="number" min="0" step="1" placeholder="Ex.: 10" />
+        <div id="previewComissao" class="small" style="display:none;"></div>
 
         <label for="observacao">Observação</label>
         <textarea id="observacao" placeholder="Ex.: meta diária, atraso, falta, destaque em vendas..."></textarea>
@@ -452,6 +471,7 @@
 
         <p class="small">
           Regras do sistema: os pontos valem apenas dentro do próprio mês. Se o desconto ultrapassar os pontos do mês, o saldo negativo é transportado para o próximo período até ser zerado.
+          Lançamentos de Ótica e Consumidor registram o valor vendido e geram comissão (1% e 2%, respectivamente); eles não entram no cálculo de pontos/descontos, e o valor em reais da comissão só é exibido para os usuários autorizados.
         </p>
       </div>
 
@@ -608,6 +628,47 @@
         </div>
       </div>
 
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="topbar">
+          <h2 style="margin:0;">Vendas Ótica &amp; Consumidor</h2>
+        </div>
+
+        <div class="grid-3">
+          <div class="metric m4">
+            <h3>Total vendido — Ótica</h3>
+            <strong id="totalVendaOtica">R$ 0,00</strong>
+          </div>
+          <div class="metric m4">
+            <h3>Total vendido — Consumidor</h3>
+            <strong id="totalVendaConsumidor">R$ 0,00</strong>
+          </div>
+          <div class="metric m2">
+            <h3>Comissão total do período</h3>
+            <strong id="totalComissaoPeriodo">Restrito</strong>
+          </div>
+        </div>
+
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Funcionário</th>
+                <th>Valor vendido — Ótica</th>
+                <th>Valor vendido — Consumidor</th>
+                <th>Comissão total</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaVendas">
+              <tr>
+                <td colspan="4" class="empty">Nenhum dado encontrado.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="small">O valor em reais da comissão só é exibido para os usuários autorizados (carolline.bhz@gmail.com e atacadoopticomg.financeiro@gmail.com). Os demais usuários veem apenas o valor total vendido.</p>
+      </div>
+
       <div class="card">
         <div class="topbar">
           <h2 style="margin:0;">Histórico de lançamentos</h2>
@@ -620,7 +681,8 @@
                 <th>Data</th>
                 <th>Funcionário</th>
                 <th>Tipo</th>
-                <th>Quantidade</th>
+                <th>Quantidade / Valor</th>
+                <th>Comissão</th>
                 <th>Observação</th>
                 <th>Registrado por</th>
                 <th>Ações</th>
@@ -628,7 +690,7 @@
             </thead>
             <tbody id="tabelaLancamentos">
               <tr>
-                <td colspan="7" class="empty">Nenhum lançamento encontrado.</td>
+                <td colspan="8" class="empty">Nenhum lançamento encontrado.</td>
               </tr>
             </tbody>
           </table>
@@ -667,6 +729,7 @@
     };
 
     const EMAIL_ADMIN_EXCLUSAO = 'carolline.bhz@gmail.com';
+    const EMAILS_ADMIN_COMISSAO = ['carolline.bhz@gmail.com', 'atacadoopticomg.financeiro@gmail.com'];
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -680,6 +743,8 @@
     const dataLancamento = document.getElementById('dataLancamento');
     const tipoLancamento = document.getElementById('tipoLancamento');
     const quantidade = document.getElementById('quantidade');
+    const labelQuantidade = document.getElementById('labelQuantidade');
+    const previewComissao = document.getElementById('previewComissao');
     const observacao = document.getElementById('observacao');
     const btnSalvar = document.getElementById('btnSalvar');
     const btnLimpar = document.getElementById('btnLimpar');
@@ -704,6 +769,10 @@
     const podio3Pontos = document.getElementById('podio3Pontos');
     const tabelaRanking = document.getElementById('tabelaRanking');
     const tabelaLancamentos = document.getElementById('tabelaLancamentos');
+    const totalVendaOtica = document.getElementById('totalVendaOtica');
+    const totalVendaConsumidor = document.getElementById('totalVendaConsumidor');
+    const totalComissaoPeriodo = document.getElementById('totalComissaoPeriodo');
+    const tabelaVendas = document.getElementById('tabelaVendas');
 
     // ===== CONVERSOR =====
     const conversorPontos    = document.getElementById('conversorPontos');
@@ -824,6 +893,60 @@
     }
     // ===== FIM CONVERSOR DINHEIRO =====
 
+    // ===== ÓTICA / CONSUMIDOR =====
+    function percentualPorTipo(tipo) {
+      if (tipo === 'OTICA') return 1;
+      if (tipo === 'CONSUMIDOR') return 2;
+      return 0;
+    }
+
+    function isTipoVenda(tipo) {
+      return tipo === 'OTICA' || tipo === 'CONSUMIDOR';
+    }
+
+    function isAdminComissao() {
+      const email = (usuarioAtual?.email || '').toLowerCase();
+      return EMAILS_ADMIN_COMISSAO.includes(email);
+    }
+
+    tipoLancamento.addEventListener('change', atualizarCampoQuantidade);
+    quantidade.addEventListener('input', atualizarPreviewComissao);
+
+    function atualizarCampoQuantidade() {
+      const tipo = tipoLancamento.value;
+      if (isTipoVenda(tipo)) {
+        labelQuantidade.textContent = 'Valor da venda (R$)';
+        quantidade.step = '0.01';
+        quantidade.placeholder = 'Ex.: 250.00';
+      } else {
+        labelQuantidade.textContent = 'Quantidade';
+        quantidade.step = '1';
+        quantidade.placeholder = 'Ex.: 10';
+      }
+      atualizarPreviewComissao();
+    }
+
+    function atualizarPreviewComissao() {
+      const tipo = tipoLancamento.value;
+
+      if (!isTipoVenda(tipo) || !isAdminComissao()) {
+        previewComissao.style.display = 'none';
+        return;
+      }
+
+      const valor = Number(quantidade.value);
+      if (!valor || valor <= 0) {
+        previewComissao.style.display = 'none';
+        return;
+      }
+
+      const pct = percentualPorTipo(tipo);
+      const comissao = (valor * pct) / 100;
+      previewComissao.style.display = 'block';
+      previewComissao.textContent = `Comissão (${pct}%): R$ ${formatarReais(comissao)}`;
+    }
+    // ===== FIM ÓTICA / CONSUMIDOR =====
+
     const hoje = new Date();
     const hojeIso = hoje.toISOString().split('T')[0];
     const mesAtual = hojeIso.slice(0, 7);
@@ -831,6 +954,7 @@
     dataLancamento.value = hojeIso;
     filtroMes.value = mesAtual;
     atualizarCabecalhoPeriodo();
+    atualizarCampoQuantidade();
 
     let usuarioAtual = null;
     let todosLancamentos = [];
@@ -886,8 +1010,17 @@
       }
 
       if (!qtd || qtd <= 0) {
-        mostrarMensagem('Informe uma quantidade válida maior que zero.', true);
+        mostrarMensagem(isTipoVenda(tipo) ? 'Informe um valor de venda válido maior que zero.' : 'Informe uma quantidade válida maior que zero.', true);
         return;
+      }
+
+      const dadosExtras = {};
+      if (isTipoVenda(tipo)) {
+        const percentual = percentualPorTipo(tipo);
+        const comissao = (qtd * percentual) / 100;
+        dadosExtras.valor_venda = qtd;
+        dadosExtras.percentual = percentual;
+        dadosExtras.comissao = comissao;
       }
 
       try {
@@ -899,6 +1032,7 @@
           tipo,
           quantidade: qtd,
           observacao: obs,
+          ...dadosExtras,
           registrado_por_nome: usuarioAtual.displayName || usuarioAtual.email,
           registrado_por_email: usuarioAtual.email || '',
           user_uid: usuarioAtual.uid,
@@ -925,7 +1059,8 @@
         userInfo.textContent = 'Faça login para registrar e visualizar os dados.';
       }
 
-      atualizarHistorico();
+      atualizarPreviewComissao();
+      atualizarTudo();
     });
 
     const q = query(
@@ -943,6 +1078,7 @@
     function atualizarTudo() {
       atualizarCabecalhoPeriodo();
       atualizarPainelERanking();
+      atualizarPainelVendas();
       atualizarHistorico();
     }
 
@@ -976,6 +1112,8 @@
 
           if (!lancamentos.length && !dividasTransportadas[funcNorm]) continue;
 
+          // Apenas PONTOS e DESCONTO entram no cálculo de pontos líquidos.
+          // Lançamentos de ÓTICA e CONSUMIDOR são tratados separadamente (painel de vendas).
           const pontos = lancamentos
             .filter(item => item.tipo === 'PONTOS')
             .reduce((acc, item) => acc + Number(item.quantidade || 0), 0);
@@ -1090,28 +1228,116 @@
       }).join('');
     }
 
-    function atualizarHistorico() {
+    function atualizarPainelVendas() {
       const lancamentos = obterLancamentosFiltradosDoMes();
-      const podeExcluir = usuarioAtual?.email?.toLowerCase() === EMAIL_ADMIN_EXCLUSAO;
+      const podeVerComissao = isAdminComissao();
+      const porFuncionario = {};
 
-      if (!lancamentos.length) {
-        tabelaLancamentos.innerHTML = '<tr><td colspan="7" class="empty">Nenhum lançamento encontrado.</td></tr>';
+      let totalOtica = 0;
+      let totalConsumidor = 0;
+      let totalComissao = 0;
+
+      lancamentos.forEach(item => {
+        if (!isTipoVenda(item.tipo)) return;
+
+        const valor = Number(item.quantidade || item.valor_venda || 0);
+        const pct = Number(item.percentual || percentualPorTipo(item.tipo));
+        const comissao = item.comissao !== undefined ? Number(item.comissao) : (valor * pct) / 100;
+
+        const key = item.funcionario_normalizado || normalizarTexto(item.funcionario);
+        if (!porFuncionario[key]) {
+          porFuncionario[key] = { funcionario: item.funcionario || key, otica: 0, consumidor: 0, comissao: 0 };
+        }
+
+        if (item.tipo === 'OTICA') {
+          porFuncionario[key].otica += valor;
+          totalOtica += valor;
+        } else {
+          porFuncionario[key].consumidor += valor;
+          totalConsumidor += valor;
+        }
+
+        porFuncionario[key].comissao += comissao;
+        totalComissao += comissao;
+      });
+
+      totalVendaOtica.textContent = `R$ ${formatarReais(totalOtica)}`;
+      totalVendaConsumidor.textContent = `R$ ${formatarReais(totalConsumidor)}`;
+      totalComissaoPeriodo.textContent = podeVerComissao ? `R$ ${formatarReais(totalComissao)}` : 'Restrito';
+
+      const linhas = Object.values(porFuncionario);
+
+      if (!linhas.length) {
+        tabelaVendas.innerHTML = '<tr><td colspan="4" class="empty">Nenhum dado encontrado.</td></tr>';
         return;
       }
 
+      tabelaVendas.innerHTML = linhas
+        .sort((a, b) => a.funcionario.localeCompare(b.funcionario, 'pt-BR'))
+        .map(item => `
+          <tr>
+            <td>${escapeHtml(item.funcionario)}</td>
+            <td>R$ ${formatarReais(item.otica)}</td>
+            <td>R$ ${formatarReais(item.consumidor)}</td>
+            <td>${podeVerComissao ? 'R$ ' + formatarReais(item.comissao) : '<span class="restrito">Restrito</span>'}</td>
+          </tr>
+        `).join('');
+    }
+
+    function atualizarHistorico() {
+      const lancamentos = obterLancamentosFiltradosDoMes();
+      const podeExcluir = usuarioAtual?.email?.toLowerCase() === EMAIL_ADMIN_EXCLUSAO;
+      const podeVerComissao = isAdminComissao();
+
+      if (!lancamentos.length) {
+        tabelaLancamentos.innerHTML = '<tr><td colspan="8" class="empty">Nenhum lançamento encontrado.</td></tr>';
+        return;
+      }
+
+      const classesTipo = {
+        PONTOS: 'status-pontos',
+        DESCONTO: 'status-desconto',
+        OTICA: 'status-otica',
+        CONSUMIDOR: 'status-consumidor'
+      };
+
+      const labelsTipo = {
+        PONTOS: 'Pontos',
+        DESCONTO: 'Desconto',
+        OTICA: 'Ótica',
+        CONSUMIDOR: 'Consumidor'
+      };
+
       tabelaLancamentos.innerHTML = lancamentos.map(item => {
-        const classeTipo = item.tipo === 'PONTOS' ? 'status-pontos' : 'status-desconto';
-        const labelTipo = item.tipo === 'PONTOS' ? 'Pontos' : 'Desconto';
+        const classeTipo = classesTipo[item.tipo] || 'status-pontos';
+        const labelTipo = labelsTipo[item.tipo] || item.tipo;
         const botaoExcluir = podeExcluir
           ? `<button class="btn-danger" onclick="window.excluirLancamento('${item.id}')">Excluir</button>`
           : `<button class="btn-secondary" disabled title="Somente ${EMAIL_ADMIN_EXCLUSAO} pode excluir.">Sem permissão</button>`;
+
+        let quantidadeCell;
+        let comissaoCell = '-';
+
+        if (isTipoVenda(item.tipo)) {
+          const valor = Number(item.quantidade || item.valor_venda || 0);
+          quantidadeCell = `R$ ${formatarReais(valor)}`;
+
+          const pct = Number(item.percentual || percentualPorTipo(item.tipo));
+          const comissao = item.comissao !== undefined ? Number(item.comissao) : (valor * pct) / 100;
+          comissaoCell = podeVerComissao
+            ? `R$ ${formatarReais(comissao)} (${pct}%)`
+            : '<span class="restrito">Restrito</span>';
+        } else {
+          quantidadeCell = Number(item.quantidade || 0);
+        }
 
         return `
           <tr>
             <td>${formatarData(item.data)}</td>
             <td>${escapeHtml(item.funcionario || '-')}</td>
             <td><span class="status ${classeTipo}">${labelTipo}</span></td>
-            <td>${Number(item.quantidade || 0)}</td>
+            <td>${quantidadeCell}</td>
+            <td>${comissaoCell}</td>
             <td>${escapeHtml(item.observacao || '-')}</td>
             <td>${escapeHtml(item.registrado_por_nome || item.registrado_por_email || '-')}</td>
             <td><div class="actions">${botaoExcluir}</div></td>
@@ -1136,6 +1362,7 @@
       quantidade.value = '';
       observacao.value = '';
       if (limparData) dataLancamento.value = hojeIso;
+      atualizarCampoQuantidade();
     }
 
     function formatarData(dataIso) {
