@@ -212,6 +212,7 @@
     .status-desconto { background: var(--danger); }
     .status-otica { background: #7c3aed; }
     .status-consumidor { background: #0ea5e9; }
+    .status-desconto-comissao { background: #ea580c; }
 
     .actions {
       display: flex;
@@ -452,7 +453,8 @@
         <label for="tipoLancamento">Tipo</label>
         <select id="tipoLancamento">
           <option value="PONTOS">Pontos</option>
-          <option value="DESCONTO">Desconto</option>
+          <option value="DESCONTO">Desconto (em pontos)</option>
+          <option value="DESCONTO_COMISSAO">Desconto em dinheiro (abate da comissão)</option>
           <option value="OTICA">Ótica (1% da venda)</option>
           <option value="CONSUMIDOR">Consumidor (2% da venda)</option>
         </select>
@@ -462,7 +464,7 @@
         <div id="previewComissao" class="small" style="display:none;"></div>
 
         <label for="observacao">Observação</label>
-        <textarea id="observacao" placeholder="Ex.: meta diária, atraso, falta, destaque em vendas..."></textarea>
+        <textarea id="observacao" placeholder="Ex.: meta diária, atraso, falta, destaque em vendas, peça quebrada..."></textarea>
 
         <button id="btnSalvar" class="btn-primary">Salvar lançamento</button>
         <button id="btnLimpar" class="btn-secondary">Limpar campos</button>
@@ -470,8 +472,10 @@
         <div id="formMessage" class="message"></div>
 
         <p class="small">
-          Regras do sistema: os pontos valem apenas dentro do próprio mês. Se o desconto ultrapassar os pontos do mês, o saldo negativo é transportado para o próximo período até ser zerado.
-          Lançamentos de Ótica e Consumidor registram o valor vendido e geram comissão (1% e 2%, respectivamente); eles não entram no cálculo de pontos/descontos, e o valor em reais da comissão só é exibido para os usuários autorizados.
+          Regras do sistema: os pontos valem apenas dentro do próprio mês. Se o desconto (em pontos) ultrapassar os pontos do mês, o saldo negativo é transportado para o próximo período até ser zerado.
+          Lançamentos de Ótica e Consumidor registram o valor vendido e geram comissão (1% e 2%, respectivamente); eles não entram no cálculo de pontos/descontos.
+          O <strong>Desconto em dinheiro</strong> não tem ligação com os pontos: ele é abatido da comissão do funcionário no mês. Se passar da comissão do mês, o saldo devedor é transportado para o próximo mês até ser zerado.
+          Os valores em reais de comissão e de desconto em dinheiro só são exibidos para os usuários autorizados.
         </p>
       </div>
 
@@ -643,8 +647,23 @@
             <strong id="totalVendaConsumidor">R$ 0,00</strong>
           </div>
           <div class="metric m2">
-            <h3>Comissão total do período</h3>
+            <h3>Comissão bruta do período</h3>
             <strong id="totalComissaoPeriodo">Restrito</strong>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="metric m3">
+            <h3>Descontos em dinheiro</h3>
+            <strong id="totalDescontoDinheiro">Restrito</strong>
+          </div>
+          <div class="metric m1">
+            <h3>Comissão líquida a pagar</h3>
+            <strong id="totalComissaoLiquida">Restrito</strong>
+          </div>
+          <div class="metric m3">
+            <h3>Débito de comissão p/ próximo mês</h3>
+            <strong id="totalDebitoComissao">Restrito</strong>
           </div>
         </div>
 
@@ -653,20 +672,24 @@
             <thead>
               <tr>
                 <th>Funcionário</th>
-                <th>Valor vendido — Ótica</th>
-                <th>Valor vendido — Consumidor</th>
-                <th>Comissão total</th>
+                <th>Vendido — Ótica</th>
+                <th>Vendido — Consumidor</th>
+                <th>Comissão bruta</th>
+                <th>Desconto em dinheiro</th>
+                <th>Débito anterior</th>
+                <th>Comissão líquida</th>
+                <th>Débito p/ próximo mês</th>
               </tr>
             </thead>
             <tbody id="tabelaVendas">
               <tr>
-                <td colspan="4" class="empty">Nenhum dado encontrado.</td>
+                <td colspan="8" class="empty">Nenhum dado encontrado.</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <p class="small">O valor em reais da comissão só é exibido para os usuários autorizados (carolline.bhz@gmail.com e atacadoopticomg.financeiro@gmail.com). Os demais usuários veem apenas o valor total vendido.</p>
+        <p class="small">Comissão líquida = comissão bruta − desconto em dinheiro − débito anterior. Se o resultado for negativo, a comissão líquida fica zerada e o saldo devedor é transportado para o mês seguinte. O valor em reais só é exibido para os usuários autorizados (carolline.bhz@gmail.com e atacadoopticomg.financeiro@gmail.com). Os demais usuários veem apenas o valor total vendido.</p>
       </div>
 
       <div class="card">
@@ -772,6 +795,9 @@
     const totalVendaOtica = document.getElementById('totalVendaOtica');
     const totalVendaConsumidor = document.getElementById('totalVendaConsumidor');
     const totalComissaoPeriodo = document.getElementById('totalComissaoPeriodo');
+    const totalDescontoDinheiro = document.getElementById('totalDescontoDinheiro');
+    const totalComissaoLiquida = document.getElementById('totalComissaoLiquida');
+    const totalDebitoComissao = document.getElementById('totalDebitoComissao');
     const tabelaVendas = document.getElementById('tabelaVendas');
 
     // ===== CONVERSOR =====
@@ -893,7 +919,7 @@
     }
     // ===== FIM CONVERSOR DINHEIRO =====
 
-    // ===== ÓTICA / CONSUMIDOR =====
+    // ===== ÓTICA / CONSUMIDOR / DESCONTO EM DINHEIRO =====
     function percentualPorTipo(tipo) {
       if (tipo === 'OTICA') return 1;
       if (tipo === 'CONSUMIDOR') return 2;
@@ -902,6 +928,15 @@
 
     function isTipoVenda(tipo) {
       return tipo === 'OTICA' || tipo === 'CONSUMIDOR';
+    }
+
+    // Desconto em reais: abatido da comissão, sem relação com os pontos.
+    function isTipoDescontoComissao(tipo) {
+      return tipo === 'DESCONTO_COMISSAO';
+    }
+
+    function isTipoEmReais(tipo) {
+      return isTipoVenda(tipo) || isTipoDescontoComissao(tipo);
     }
 
     function isAdminComissao() {
@@ -918,6 +953,10 @@
         labelQuantidade.textContent = 'Valor da venda (R$)';
         quantidade.step = '0.01';
         quantidade.placeholder = 'Ex.: 250.00';
+      } else if (isTipoDescontoComissao(tipo)) {
+        labelQuantidade.textContent = 'Valor do desconto (R$)';
+        quantidade.step = '0.01';
+        quantidade.placeholder = 'Ex.: 35.00';
       } else {
         labelQuantidade.textContent = 'Quantidade';
         quantidade.step = '1';
@@ -929,7 +968,7 @@
     function atualizarPreviewComissao() {
       const tipo = tipoLancamento.value;
 
-      if (!isTipoVenda(tipo) || !isAdminComissao()) {
+      if (!isTipoEmReais(tipo) || !isAdminComissao()) {
         previewComissao.style.display = 'none';
         return;
       }
@@ -940,9 +979,15 @@
         return;
       }
 
+      previewComissao.style.display = 'block';
+
+      if (isTipoDescontoComissao(tipo)) {
+        previewComissao.textContent = `Será abatido da comissão: R$ ${formatarReais(valor)}`;
+        return;
+      }
+
       const pct = percentualPorTipo(tipo);
       const comissao = (valor * pct) / 100;
-      previewComissao.style.display = 'block';
       previewComissao.textContent = `Comissão (${pct}%): R$ ${formatarReais(comissao)}`;
     }
     // ===== FIM ÓTICA / CONSUMIDOR =====
@@ -1010,7 +1055,10 @@
       }
 
       if (!qtd || qtd <= 0) {
-        mostrarMensagem(isTipoVenda(tipo) ? 'Informe um valor de venda válido maior que zero.' : 'Informe uma quantidade válida maior que zero.', true);
+        let msg = 'Informe uma quantidade válida maior que zero.';
+        if (isTipoVenda(tipo)) msg = 'Informe um valor de venda válido maior que zero.';
+        if (isTipoDescontoComissao(tipo)) msg = 'Informe um valor de desconto válido maior que zero.';
+        mostrarMensagem(msg, true);
         return;
       }
 
@@ -1021,6 +1069,8 @@
         dadosExtras.valor_venda = qtd;
         dadosExtras.percentual = percentual;
         dadosExtras.comissao = comissao;
+      } else if (isTipoDescontoComissao(tipo)) {
+        dadosExtras.valor_desconto = qtd;
       }
 
       try {
@@ -1113,7 +1163,7 @@
           if (!lancamentos.length && !dividasTransportadas[funcNorm]) continue;
 
           // Apenas PONTOS e DESCONTO entram no cálculo de pontos líquidos.
-          // Lançamentos de ÓTICA e CONSUMIDOR são tratados separadamente (painel de vendas).
+          // ÓTICA, CONSUMIDOR e DESCONTO_COMISSAO são tratados separadamente (painel de vendas/comissão).
           const pontos = lancamentos
             .filter(item => item.tipo === 'PONTOS')
             .reduce((acc, item) => acc + Number(item.quantidade || 0), 0);
@@ -1153,6 +1203,69 @@
 
         if (rankingPeriodo.length && rankingPeriodo[0].pontosLiquidos > 0) {
           resumo[periodo][rankingPeriodo[0].funcionario_normalizado].melhorDoPeriodo = true;
+        }
+      }
+
+      return resumo;
+    }
+
+    // Resumo mensal de comissão: comissão bruta − desconto em dinheiro − débito anterior.
+    // Saldo negativo é transportado para o mês seguinte.
+    function construirResumoComissaoPorPeriodo() {
+      const relevantes = todosLancamentos.filter(item => isTipoEmReais(item.tipo));
+      const periodos = [...new Set(relevantes.map(item => item.periodo).filter(Boolean))].sort();
+      const funcionarios = [...new Set(relevantes.map(item => item.funcionario_normalizado || normalizarTexto(item.funcionario)).filter(Boolean))].sort();
+      const resumo = {};
+      const debitoTransportado = {};
+
+      for (const periodo of periodos) {
+        resumo[periodo] = {};
+
+        for (const funcNorm of funcionarios) {
+          const lancamentos = relevantes.filter(item =>
+            item.periodo === periodo &&
+            (item.funcionario_normalizado || normalizarTexto(item.funcionario)) === funcNorm
+          );
+
+          if (!lancamentos.length && !debitoTransportado[funcNorm]) continue;
+
+          let otica = 0;
+          let consumidor = 0;
+          let comissaoBruta = 0;
+          let descontoDinheiro = 0;
+
+          lancamentos.forEach(item => {
+            if (isTipoVenda(item.tipo)) {
+              const valor = Number(item.quantidade || item.valor_venda || 0);
+              const pct = Number(item.percentual || percentualPorTipo(item.tipo));
+              const comissao = item.comissao !== undefined ? Number(item.comissao) : (valor * pct) / 100;
+              if (item.tipo === 'OTICA') otica += valor; else consumidor += valor;
+              comissaoBruta += comissao;
+            } else if (isTipoDescontoComissao(item.tipo)) {
+              descontoDinheiro += Number(item.quantidade || item.valor_desconto || 0);
+            }
+          });
+
+          const debitoAnterior = debitoTransportado[funcNorm] || 0;
+          const saldo = comissaoBruta - descontoDinheiro - debitoAnterior;
+          const comissaoLiquida = saldo > 0 ? saldo : 0;
+          const debitoProximo = saldo < 0 ? Math.abs(saldo) : 0;
+
+          const nomeOriginal = lancamentos[0]?.funcionario || buscarNomeOriginal(funcNorm);
+
+          resumo[periodo][funcNorm] = {
+            funcionario: nomeOriginal,
+            funcionario_normalizado: funcNorm,
+            otica,
+            consumidor,
+            comissaoBruta,
+            descontoDinheiro,
+            debitoAnterior,
+            comissaoLiquida,
+            debitoProximo
+          };
+
+          debitoTransportado[funcNorm] = debitoProximo;
         }
       }
 
@@ -1229,48 +1342,31 @@
     }
 
     function atualizarPainelVendas() {
-      const lancamentos = obterLancamentosFiltradosDoMes();
+      const periodo = filtroMes.value;
+      const nomeFiltro = normalizarTexto(filtroFuncionario.value || '');
       const podeVerComissao = isAdminComissao();
-      const porFuncionario = {};
+      const resumoCompleto = construirResumoComissaoPorPeriodo();
 
-      let totalOtica = 0;
-      let totalConsumidor = 0;
-      let totalComissao = 0;
-
-      lancamentos.forEach(item => {
-        if (!isTipoVenda(item.tipo)) return;
-
-        const valor = Number(item.quantidade || item.valor_venda || 0);
-        const pct = Number(item.percentual || percentualPorTipo(item.tipo));
-        const comissao = item.comissao !== undefined ? Number(item.comissao) : (valor * pct) / 100;
-
-        const key = item.funcionario_normalizado || normalizarTexto(item.funcionario);
-        if (!porFuncionario[key]) {
-          porFuncionario[key] = { funcionario: item.funcionario || key, otica: 0, consumidor: 0, comissao: 0 };
-        }
-
-        if (item.tipo === 'OTICA') {
-          porFuncionario[key].otica += valor;
-          totalOtica += valor;
-        } else {
-          porFuncionario[key].consumidor += valor;
-          totalConsumidor += valor;
-        }
-
-        porFuncionario[key].comissao += comissao;
-        totalComissao += comissao;
+      const linhas = Object.values(resumoCompleto[periodo] || {}).filter(item => {
+        return !nomeFiltro || item.funcionario_normalizado.includes(nomeFiltro);
       });
 
-      totalVendaOtica.textContent = `R$ ${formatarReais(totalOtica)}`;
-      totalVendaConsumidor.textContent = `R$ ${formatarReais(totalConsumidor)}`;
-      totalComissaoPeriodo.textContent = podeVerComissao ? `R$ ${formatarReais(totalComissao)}` : 'Restrito';
+      const soma = (campo) => linhas.reduce((acc, item) => acc + item[campo], 0);
 
-      const linhas = Object.values(porFuncionario);
+      totalVendaOtica.textContent = `R$ ${formatarReais(soma('otica'))}`;
+      totalVendaConsumidor.textContent = `R$ ${formatarReais(soma('consumidor'))}`;
+      totalComissaoPeriodo.textContent = podeVerComissao ? `R$ ${formatarReais(soma('comissaoBruta'))}` : 'Restrito';
+      totalDescontoDinheiro.textContent = podeVerComissao ? `R$ ${formatarReais(soma('descontoDinheiro'))}` : 'Restrito';
+      totalComissaoLiquida.textContent = podeVerComissao ? `R$ ${formatarReais(soma('comissaoLiquida'))}` : 'Restrito';
+      totalDebitoComissao.textContent = podeVerComissao ? `R$ ${formatarReais(soma('debitoProximo'))}` : 'Restrito';
 
       if (!linhas.length) {
-        tabelaVendas.innerHTML = '<tr><td colspan="4" class="empty">Nenhum dado encontrado.</td></tr>';
+        tabelaVendas.innerHTML = '<tr><td colspan="8" class="empty">Nenhum dado encontrado.</td></tr>';
         return;
       }
+
+      const restrito = '<span class="restrito">Restrito</span>';
+      const moeda = (v) => podeVerComissao ? 'R$ ' + formatarReais(v) : restrito;
 
       tabelaVendas.innerHTML = linhas
         .sort((a, b) => a.funcionario.localeCompare(b.funcionario, 'pt-BR'))
@@ -1279,7 +1375,11 @@
             <td>${escapeHtml(item.funcionario)}</td>
             <td>R$ ${formatarReais(item.otica)}</td>
             <td>R$ ${formatarReais(item.consumidor)}</td>
-            <td>${podeVerComissao ? 'R$ ' + formatarReais(item.comissao) : '<span class="restrito">Restrito</span>'}</td>
+            <td>${moeda(item.comissaoBruta)}</td>
+            <td>${podeVerComissao ? (item.descontoDinheiro > 0 ? '<span class="negativo">– R$ ' + formatarReais(item.descontoDinheiro) + '</span>' : 'R$ 0,00') : restrito}</td>
+            <td>${moeda(item.debitoAnterior)}</td>
+            <td>${podeVerComissao ? '<strong>R$ ' + formatarReais(item.comissaoLiquida) + '</strong>' : restrito}</td>
+            <td>${podeVerComissao ? (item.debitoProximo > 0 ? '<span class="negativo">R$ ' + formatarReais(item.debitoProximo) + '</span>' : 'R$ 0,00') : restrito}</td>
           </tr>
         `).join('');
     }
@@ -1297,13 +1397,15 @@
       const classesTipo = {
         PONTOS: 'status-pontos',
         DESCONTO: 'status-desconto',
+        DESCONTO_COMISSAO: 'status-desconto-comissao',
         OTICA: 'status-otica',
         CONSUMIDOR: 'status-consumidor'
       };
 
       const labelsTipo = {
         PONTOS: 'Pontos',
-        DESCONTO: 'Desconto',
+        DESCONTO: 'Desconto (pontos)',
+        DESCONTO_COMISSAO: 'Desconto (R$)',
         OTICA: 'Ótica',
         CONSUMIDOR: 'Consumidor'
       };
@@ -1326,6 +1428,14 @@
           const comissao = item.comissao !== undefined ? Number(item.comissao) : (valor * pct) / 100;
           comissaoCell = podeVerComissao
             ? `R$ ${formatarReais(comissao)} (${pct}%)`
+            : '<span class="restrito">Restrito</span>';
+        } else if (isTipoDescontoComissao(item.tipo)) {
+          const valor = Number(item.quantidade || item.valor_desconto || 0);
+          quantidadeCell = podeVerComissao
+            ? `R$ ${formatarReais(valor)}`
+            : '<span class="restrito">Restrito</span>';
+          comissaoCell = podeVerComissao
+            ? `<span class="negativo">– R$ ${formatarReais(valor)}</span> (abate da comissão)`
             : '<span class="restrito">Restrito</span>';
         } else {
           quantidadeCell = Number(item.quantidade || 0);
