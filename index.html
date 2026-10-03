@@ -454,7 +454,7 @@
         <select id="tipoLancamento">
           <option value="PONTOS">Pontos</option>
           <option value="DESCONTO">Desconto (em pontos)</option>
-          <option value="DESCONTO_COMISSAO">Desconto em dinheiro (abate da comissão)</option>
+          <option value="DESCONTO_COMISSAO">Desconto em dinheiro (abate da premiação)</option>
           <option value="OTICA">Ótica (1% da venda)</option>
           <option value="CONSUMIDOR">Consumidor (2% da venda)</option>
         </select>
@@ -473,9 +473,9 @@
 
         <p class="small">
           Regras do sistema: os pontos valem apenas dentro do próprio mês. Se o desconto (em pontos) ultrapassar os pontos do mês, o saldo negativo é transportado para o próximo período até ser zerado.
-          Lançamentos de Ótica e Consumidor registram o valor vendido e geram comissão (1% e 2%, respectivamente); eles não entram no cálculo de pontos/descontos.
-          O <strong>Desconto em dinheiro</strong> não tem ligação com os pontos: ele é abatido da comissão do funcionário no mês. Se passar da comissão do mês, o saldo devedor é transportado para o próximo mês até ser zerado.
-          Os valores em reais de comissão e de desconto em dinheiro só são exibidos para os usuários autorizados.
+          Lançamentos de Ótica e Consumidor registram o valor vendido e geram premiação (1% e 2%, respectivamente); eles não entram no cálculo de pontos/descontos.
+          O <strong>Desconto em dinheiro</strong> não tem ligação com os pontos: ele é abatido da premiação do funcionário no mês. Se passar da premiação do mês, o saldo devedor é transportado para o próximo mês até ser zerado.
+          Os valores em reais de premiação e de desconto em dinheiro só são exibidos para os usuários autorizados.
         </p>
       </div>
 
@@ -647,7 +647,7 @@
             <strong id="totalVendaConsumidor">R$ 0,00</strong>
           </div>
           <div class="metric m2">
-            <h3>Comissão bruta do período</h3>
+            <h3>Premiação bruta do período</h3>
             <strong id="totalComissaoPeriodo">Restrito</strong>
           </div>
         </div>
@@ -658,11 +658,11 @@
             <strong id="totalDescontoDinheiro">Restrito</strong>
           </div>
           <div class="metric m1">
-            <h3>Comissão líquida a pagar</h3>
+            <h3>Premiação líquida a pagar</h3>
             <strong id="totalComissaoLiquida">Restrito</strong>
           </div>
           <div class="metric m3">
-            <h3>Débito de comissão p/ próximo mês</h3>
+            <h3>Débito de premiação p/ próximo mês</h3>
             <strong id="totalDebitoComissao">Restrito</strong>
           </div>
         </div>
@@ -674,10 +674,10 @@
                 <th>Funcionário</th>
                 <th>Vendido — Ótica</th>
                 <th>Vendido — Consumidor</th>
-                <th>Comissão bruta</th>
+                <th>Premiação bruta</th>
                 <th>Desconto em dinheiro</th>
                 <th>Débito anterior</th>
-                <th>Comissão líquida</th>
+                <th>Premiação líquida</th>
                 <th>Débito p/ próximo mês</th>
               </tr>
             </thead>
@@ -689,7 +689,7 @@
           </table>
         </div>
 
-        <p class="small">Comissão líquida = comissão bruta − desconto em dinheiro − débito anterior. Se o resultado for negativo, a comissão líquida fica zerada e o saldo devedor é transportado para o mês seguinte. O valor em reais só é exibido para os usuários autorizados (carolline.bhz@gmail.com e atacadoopticomg.financeiro@gmail.com). Os demais usuários veem apenas o valor total vendido.</p>
+        <p class="small">Premiação líquida = premiação bruta − desconto em dinheiro − débito anterior. Se o resultado for negativo, a premiação líquida fica zerada e o saldo devedor é transportado para o mês seguinte. O valor em reais só é exibido para os usuários autorizados (carolline.bhz@gmail.com e atacadoopticomg.financeiro@gmail.com). Os demais usuários veem apenas o valor total vendido.</p>
       </div>
 
       <div class="card">
@@ -705,7 +705,7 @@
                 <th>Funcionário</th>
                 <th>Tipo</th>
                 <th>Quantidade / Valor</th>
-                <th>Comissão</th>
+                <th>Premiação</th>
                 <th>Observação</th>
                 <th>Registrado por</th>
                 <th>Ações</th>
@@ -930,7 +930,7 @@
       return tipo === 'OTICA' || tipo === 'CONSUMIDOR';
     }
 
-    // Desconto em reais: abatido da comissão, sem relação com os pontos.
+    // Desconto em reais: abatido da premiação, sem relação com os pontos.
     function isTipoDescontoComissao(tipo) {
       return tipo === 'DESCONTO_COMISSAO';
     }
@@ -982,13 +982,13 @@
       previewComissao.style.display = 'block';
 
       if (isTipoDescontoComissao(tipo)) {
-        previewComissao.textContent = `Será abatido da comissão: R$ ${formatarReais(valor)}`;
+        previewComissao.textContent = `Será abatido da premiação: R$ ${formatarReais(valor)}`;
         return;
       }
 
       const pct = percentualPorTipo(tipo);
       const comissao = (valor * pct) / 100;
-      previewComissao.textContent = `Comissão (${pct}%): R$ ${formatarReais(comissao)}`;
+      previewComissao.textContent = `Premiação (${pct}%): R$ ${formatarReais(comissao)}`;
     }
     // ===== FIM ÓTICA / CONSUMIDOR =====
 
@@ -1163,7 +1163,7 @@
           if (!lancamentos.length && !dividasTransportadas[funcNorm]) continue;
 
           // Apenas PONTOS e DESCONTO entram no cálculo de pontos líquidos.
-          // ÓTICA, CONSUMIDOR e DESCONTO_COMISSAO são tratados separadamente (painel de vendas/comissão).
+          // ÓTICA, CONSUMIDOR e DESCONTO_COMISSAO são tratados separadamente (painel de vendas/premiação).
           const pontos = lancamentos
             .filter(item => item.tipo === 'PONTOS')
             .reduce((acc, item) => acc + Number(item.quantidade || 0), 0);
@@ -1209,7 +1209,7 @@
       return resumo;
     }
 
-    // Resumo mensal de comissão: comissão bruta − desconto em dinheiro − débito anterior.
+    // Resumo mensal de premiação: premiação bruta − desconto em dinheiro − débito anterior.
     // Saldo negativo é transportado para o mês seguinte.
     function construirResumoComissaoPorPeriodo() {
       const relevantes = todosLancamentos.filter(item => isTipoEmReais(item.tipo));
@@ -1435,7 +1435,7 @@
             ? `R$ ${formatarReais(valor)}`
             : '<span class="restrito">Restrito</span>';
           comissaoCell = podeVerComissao
-            ? `<span class="negativo">– R$ ${formatarReais(valor)}</span> (abate da comissão)`
+            ? `<span class="negativo">– R$ ${formatarReais(valor)}</span> (abate da premiação)`
             : '<span class="restrito">Restrito</span>';
         } else {
           quantidadeCell = Number(item.quantidade || 0);
